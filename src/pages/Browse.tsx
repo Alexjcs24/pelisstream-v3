@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from "motion/react";
-import { LayoutGrid, Rows3 } from "lucide-react";
+import { Dices, LayoutGrid, Rows3 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { currentYear, genreLabel, type CatalogId, type CatalogQuery } from "../lib/cinemeta";
+import { currentYear, genreLabel, getCatalog, type CatalogId, type CatalogQuery } from "../lib/cinemeta";
 import { DedupeScope } from "../lib/dedupe";
 import { cx } from "../lib/format";
 import { usePagedCatalog } from "../lib/hooks";
@@ -10,6 +10,7 @@ import { PLATFORM_ORDER, PLATFORMS } from "../lib/platforms";
 import { useSource, type SortMode } from "../lib/sources";
 import { useActiveProfile } from "../lib/store";
 import type { MediaItem, MediaType } from "../lib/types";
+import { ui } from "../lib/ui";
 import { Hero } from "../components/Hero";
 import { ContinueRail } from "../components/HomeRails";
 import { MediaGrid } from "../components/PageParts";
@@ -90,6 +91,37 @@ export function Browse({ type }: { type: MediaType }) {
   const paged = usePagedCatalog(view === "grid" ? main : null, genreFilter);
   const chips = kids ? KIDS_CHIPS : GENRE_CHIPS;
   const sortLabel = SORTS.find((s) => s.id === sort)!.label;
+  const [surpriseLoading, setSurpriseLoading] = useState(false);
+
+  const handleSurpriseMe = async () => {
+    if (surpriseLoading) return;
+    setSurpriseLoading(true);
+    try {
+      // Tomamos un catálogo del género actual (o top general) con un skip aleatorio
+      const randomSkip = Math.floor(Math.random() * 3) * 20; // 0, 20 o 40 para variedad
+      const items = await getCatalog({
+        type,
+        genre: genre ?? undefined,
+        catalog: "top",
+        skip: randomSkip,
+      });
+
+      const pool = items.filter((i) => i.background && i.imdbRating >= 5.5);
+      const candidates = pool.length > 0 ? pool : items;
+
+      if (candidates.length > 0) {
+        const picked = candidates[Math.floor(Math.random() * candidates.length)];
+        ui.toast(`🎲 ¡Sorpresa! Seleccionando "${picked.title}"`, "accent");
+        ui.openDetails(picked);
+      } else {
+        ui.toast("No encontramos títulos en esta categoría", "default");
+      }
+    } catch {
+      ui.toast("No pudimos obtener una recomendación al azar", "default");
+    } finally {
+      setSurpriseLoading(false);
+    }
+  };
 
   return (
     <div className="pb-28">
@@ -129,6 +161,21 @@ export function Browse({ type }: { type: MediaType }) {
             })}
           </div>
           <div className="flex items-center gap-2 lg:ml-auto">
+            {/* Botón Sorpréndeme */}
+            <button
+              onClick={handleSurpriseMe}
+              disabled={surpriseLoading}
+              title={`Elegir ${type === "movie" ? "película" : "serie"} al azar${genre ? ` de ${genreLabel(genre)}` : ""}`}
+              className={cx(
+                "group relative inline-flex h-9 items-center gap-2 rounded-full px-4 text-[13px] font-bold transition",
+                "bg-gradient-to-r from-amber-500/20 via-accent/20 to-orange-500/20 border border-accent/40 text-fg shadow-lg",
+                "hover:scale-105 hover:border-accent hover:bg-accent hover:text-ink active:scale-95 disabled:opacity-50",
+              )}
+            >
+              <Dices className={cx("size-4 text-accent transition group-hover:text-ink", surpriseLoading && "animate-spin")} />
+              <span>{surpriseLoading ? "Buscando…" : "¡Sorpréndeme!"}</span>
+            </button>
+
             <div className="flex items-center gap-0.5 rounded-full bg-white/[0.06] p-1 refract">
               {SORTS.map((s) => (
                 <button
