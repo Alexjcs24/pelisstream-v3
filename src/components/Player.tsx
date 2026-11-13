@@ -526,6 +526,7 @@ function StreamEngine({
   const mountTimeRef = useRef<number>(Date.now());
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const [slowWarning, setSlowWarning] = useState(false);
+  const [shieldActive, setShieldActive] = useState(true);
 
   const handleRotate = () => {
     const elapsed = Date.now() - mountTimeRef.current;
@@ -539,6 +540,7 @@ function StreamEngine({
   useEffect(() => {
     setIframeLoaded(false);
     setSlowWarning(false);
+    setShieldActive(true);
     mountTimeRef.current = Date.now();
 
     const fastRevealTimer = window.setTimeout(() => {
@@ -619,6 +621,23 @@ function StreamEngine({
         }}
         className="absolute inset-0 size-full border-0 bg-black"
       />
+
+      {/* Escudo Anti-Ad Clickjacking: Neutraliza trampas de clics invisibles de los servidores */}
+      {shieldActive && iframeLoaded && (
+        <div
+          onClick={(e) => {
+            e.stopPropagation();
+            setShieldActive(false);
+            showChrome();
+          }}
+          className="absolute inset-0 z-20 flex cursor-pointer items-center justify-center bg-black/20 backdrop-blur-[1px] transition hover:bg-black/10"
+        >
+          <div className="flex items-center gap-2 rounded-full border border-white/20 bg-black/75 px-5 py-2.5 text-xs font-semibold text-fg shadow-2xl backdrop-blur-md transition hover:scale-105">
+            <Play className="size-4 fill-accent text-accent" />
+            <span>Toca para reproducir (Escudo Anti-Anuncios Activo)</span>
+          </div>
+        </div>
+      )}
 
       {/* Backdrop while connecting to server */}
       <AnimatePresence>
